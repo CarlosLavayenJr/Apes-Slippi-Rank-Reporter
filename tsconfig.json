@@ -1,11 +1,13 @@
 {
   "compilerOptions": {
-    "module": "commonjs",
     "target": "es2020",
+    "module": "commonjs",
     "moduleResolution": "node",
+    "outDir": "dist",
+    "rootDir": "src",
+    "strict": true,
     "esModuleInterop": true,
-    "strict": true
+    "skipLibCheck": true
   },
-  "include": ["src", "scripts", "slippi-test.ts"]
-
+  "include": ["src"]
 }
