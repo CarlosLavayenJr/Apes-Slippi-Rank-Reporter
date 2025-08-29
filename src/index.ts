@@ -4,8 +4,19 @@ import { fetchRankedByCode } from "./slippi";
 import "dotenv/config";
 import { startPolling } from "./poller";
 
+console.log("[boot] NODE_ENV:", process.env.NODE_ENV);
+console.log("[boot] SLIPPI_GQL_ENDPOINT:", process.env.SLIPPI_GQL_ENDPOINT || "(unset)");
+
+process.on("unhandledRejection", (err) => {
+    console.error("[unhandledRejection]", err);
+});
+process.on("uncaughtException", (err) => {
+    console.error("[uncaughtException]", err);
+});
+
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 
+client.on("error", (err) => console.error("[client error]", err));
 
 client.on("interactionCreate", async (i) => {
     if (!i.isChatInputCommand()) return;
@@ -41,8 +52,6 @@ client.on("interactionCreate", async (i) => {
     }
 });
 
-
-
 client.once("clientReady", () => {
     console.log(`Logged in as ${client.user?.tag}`);
     startPolling(client);
@@ -51,4 +60,3 @@ client.once("clientReady", () => {
 client.login(process.env.DISCORD_TOKEN)
     .then(() => console.log("Login successful"))
     .catch(err => console.error("Login failed:", err));
-
