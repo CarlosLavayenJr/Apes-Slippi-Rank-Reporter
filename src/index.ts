@@ -43,10 +43,14 @@ client.on("interactionCreate", async (i) => {
     }
     if (i.commandName === "rank") {
         const code = i.options.getString("code", true);
+
+        // Defer the reply to prevent timeout
+        await i.deferReply();
+
         const snap = await fetchRankedByCode(code);
-        return i.reply(
+        return i.editReply(
             snap
-                ? `Season: ${snap.season}\nRating: ${snap.rating}\nW/L: ${snap.wins}-${snap.losses}\nRank: ${snap.rank}`
+                ? `**${code.toUpperCase()}**\nSeason: ${snap.season}\nRating: ${snap.rating}\nW/L: ${snap.wins}-${snap.losses}\nRank: ${snap.rank}`
                 : "No ranked profile found."
         );
     }

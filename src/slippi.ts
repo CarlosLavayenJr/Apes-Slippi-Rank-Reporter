@@ -75,17 +75,19 @@ type RankedResp = {
         getUser?: {
             displayName?: string;
             rankedNetplayProfile?: {
-                ratingOrdinal?: number | null;
-                wins?: number | null;
-                losses?: number | null;
-            } | null;
+                id?: string;
+                ratingOrdinal?: number;
+                wins?: number;
+                losses?: number;
+            };
             rankedNetplayProfileHistory?: Array<{
                 season?: {
-                    id?: string | null;
-                    name?: string | null;
-                } | null;
-            }> | null;
-        } | null;
+                    id?: string;
+                    name?: string;
+                    status?: string;
+                };
+            }>;
+        };
     };
     errors?: unknown;
 };
@@ -100,14 +102,31 @@ function deriveRank(rating: number): string {
     return "Bronze";
 }
 
-function latestSeasonId(profiles?: Array<{ season?: { id?: string | null; name?: string | null } | null }> | null): string | null {
-    if (!profiles || profiles.length === 0) return null;
-    // Get the most recent season
-    for (let i = profiles.length - 1; i >= 0; i--) {
-        const season = profiles[i]?.season;
-        if (season?.id) return season.name || season.id;
+function getCurrentSeasonName(
+    currentProfile?: { id?: string },
+    profileHistory?: Array<{ season?: { id?: string; name?: string; status?: string } }>
+): string | null {
+    if (!currentProfile?.id) return null;
+    
+    // Extract season from current profile ID (e.g., "RANKED_SINGLES-...-season-3")
+    const match = currentProfile.id.match(/-([^-]+)$/);
+    const currentSeasonId = match ? match[1] : null;
+    
+    if (!currentSeasonId) return null;
+    
+    // Try to find the season name in history
+    const seasonInfo = profileHistory?.find(p => p.season?.id === currentSeasonId);
+    if (seasonInfo?.season?.name) {
+        return seasonInfo.season.name;
     }
-    return null;
+    
+    // Fallback: format the season ID nicely
+    if (currentSeasonId.startsWith('season-')) {
+        const num = currentSeasonId.replace('season-', '');
+        return `Season ${num}`;
+    }
+    
+    return currentSeasonId;
 }
 
 export async function fetchRankedByCode(code: string): Promise<Snapshot | null> {
@@ -126,7 +145,6 @@ export async function fetchRankedByCode(code: string): Promise<Snapshot | null> 
             headers: {
                 "content-type": "application/json",
                 "accept": "application/json",
-                // Removed the extra headers that might cause issues
             },
             body: JSON.stringify(payload),
         });
@@ -140,9 +158,7 @@ export async function fetchRankedByCode(code: string): Promise<Snapshot | null> 
         "[slippi] fetch -> status",
         r.status,
         "ct",
-        ct,
-        "finalURL",
-        (r as any).url ?? "(n/a)"
+        ct
     );
 
     if (!ct.includes("application/json")) {
@@ -154,7 +170,7 @@ export async function fetchRankedByCode(code: string): Promise<Snapshot | null> 
     let json: RankedResp;
     try {
         json = (await r.json()) as RankedResp;
-        console.log("[slippi] response:", JSON.stringify(json, null, 2));
+        console.log("[slippi] success for", cc);
     } catch (e) {
         console.error("[slippi] JSON parse error:", e);
         return null;
@@ -167,7 +183,7 @@ export async function fetchRankedByCode(code: string): Promise<Snapshot | null> 
         return null;
     }
 
-    const season = latestSeasonId(user?.rankedNetplayProfileHistory ?? null);
+    const season = getCurrentSeasonName(prof, user?.rankedNetplayProfileHistory);
     const rating = Number(prof.ratingOrdinal ?? 0);
 
     return {
