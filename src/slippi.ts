@@ -1,11 +1,9 @@
-// src/slippi.ts
 import "dotenv/config";
 
-export const SLIPPI_ENDPOINT =
-    "https://gql-gateway-dot-slippi.uc.r.appspot.com/graphql";
+export const SLIPPI_ENDPOINT = "https://internal.slippi.gg/graphql";
 console.log("[slippi] endpoint =", SLIPPI_ENDPOINT);
 
-// Query shape aligned with the slippi.gg web app
+// Updated query to match the working curl
 const query = `
 fragment profileFields on NetplayProfile {
   id
@@ -16,27 +14,49 @@ fragment profileFields on NetplayProfile {
   dailyGlobalPlacement
   dailyRegionalPlacement
   continent
-  characters { id character gameCount __typename }
-  __typename
-}
-fragment userProfilePage on User {
-  fbUid
-  displayName
-  connectCode { code __typename }
-  status
-  activeSubscription { level hasGiftSub __typename }
-  rankedNetplayProfile { ...profileFields __typename }
-  netplayProfiles {
-    ...profileFields
-    season { id startedAt endedAt name status __typename }
+  characters {
+    character
+    gameCount
     __typename
   }
   __typename
 }
-query AccountManagementPageQuery($cc: String!, $uid: String!) {
-  getUser(fbUid: $uid) { ...userProfilePage __typename }
-  getConnectCode(code: $cc) {
-    user { ...userProfilePage __typename }
+
+fragment userProfilePage on User {
+  fbUid
+  displayName
+  connectCode {
+    code
+    __typename
+  }
+  status
+  activeSubscription {
+    level
+    hasGiftSub
+    __typename
+  }
+  rankedNetplayProfile {
+    ...profileFields
+    __typename
+  }
+  rankedNetplayProfileHistory {
+    ...profileFields
+    season {
+      id
+      startedAt
+      endedAt
+      name
+      status
+      __typename
+    }
+    __typename
+  }
+  __typename
+}
+
+query UserProfilePageQuery($cc: String, $uid: String) {
+  getUser(fbUid: $uid, connectCode: $cc) {
+    ...userProfilePage
     __typename
   }
 }
@@ -47,30 +67,30 @@ export type Snapshot = {
     rating: number;
     wins: number;
     losses: number;
-    rank: string | null; // derived from rating; Slippi doesn't return a tier string directly
+    rank: string | null;
 };
-
-type NetplayProfileLite = { season?: { id?: string | null } | null } | null;
 
 type RankedResp = {
     data?: {
-        getConnectCode?: {
-            user?: {
-                displayName?: string;
-                rankedNetplayProfile?: {
-                    ratingOrdinal?: number | null;
-                    wins?: number | null;
-                    losses?: number | null;
-                } | null;
-                netplayProfiles?: NetplayProfileLite[] | null;
+        getUser?: {
+            displayName?: string;
+            rankedNetplayProfile?: {
+                ratingOrdinal?: number | null;
+                wins?: number | null;
+                losses?: number | null;
             } | null;
+            rankedNetplayProfileHistory?: Array<{
+                season?: {
+                    id?: string | null;
+                    name?: string | null;
+                } | null;
+            }> | null;
         } | null;
     };
     errors?: unknown;
 };
 
 function deriveRank(rating: number): string {
-    // rough buckets; tweak to match exact Slippi tiers if you want
     if (rating >= 2350) return "Master+";
     if (rating >= 2192) return "Master";
     if (rating >= 2004) return "Diamond";
@@ -80,21 +100,21 @@ function deriveRank(rating: number): string {
     return "Bronze";
 }
 
-function latestSeasonId(profiles?: NetplayProfileLite[] | null): string | null {
+function latestSeasonId(profiles?: Array<{ season?: { id?: string | null; name?: string | null } | null }> | null): string | null {
     if (!profiles || profiles.length === 0) return null;
-    // Walk from end without using Array.prototype.findLast (older lib compat)
+    // Get the most recent season
     for (let i = profiles.length - 1; i >= 0; i--) {
-        const id = profiles[i]?.season?.id ?? null;
-        if (id) return id;
+        const season = profiles[i]?.season;
+        if (season?.id) return season.name || season.id;
     }
-    return profiles[0]?.season?.id ?? null;
+    return null;
 }
 
 export async function fetchRankedByCode(code: string): Promise<Snapshot | null> {
     const cc = code.toUpperCase().trim();
     const payload = {
-        operationName: "AccountManagementPageQuery",
-        variables: { cc, uid: cc }, // site sends both; harmless if uid isn't used
+        operationName: "UserProfilePageQuery",
+        variables: { cc, uid: cc },
         query,
     };
 
@@ -104,19 +124,9 @@ export async function fetchRankedByCode(code: string): Promise<Snapshot | null> 
             method: "POST",
             redirect: "manual",
             headers: {
-                // core
                 "content-type": "application/json",
                 "accept": "application/json",
-
-                // pretend to be the site (some frontends gate on these)
-                "origin": "https://slippi.gg",
-                "referer": "https://slippi.gg/",
-                "user-agent":
-                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0 Safari/537.36",
-
-                // Apollo-ish headers
-                "apollographql-client-name": "slippi-web",
-                "apollographql-client-version": "1.0.0",
+                // Removed the extra headers that might cause issues
             },
             body: JSON.stringify(payload),
         });
@@ -144,16 +154,20 @@ export async function fetchRankedByCode(code: string): Promise<Snapshot | null> 
     let json: RankedResp;
     try {
         json = (await r.json()) as RankedResp;
+        console.log("[slippi] response:", JSON.stringify(json, null, 2));
     } catch (e) {
         console.error("[slippi] JSON parse error:", e);
         return null;
     }
 
-    const user = json.data?.getConnectCode?.user;
+    const user = json.data?.getUser;
     const prof = user?.rankedNetplayProfile;
-    if (!prof) return null;
+    if (!prof) {
+        console.log("[slippi] no ranked profile found for", cc);
+        return null;
+    }
 
-    const season = latestSeasonId(user?.netplayProfiles ?? null);
+    const season = latestSeasonId(user?.rankedNetplayProfileHistory ?? null);
     const rating = Number(prof.ratingOrdinal ?? 0);
 
     return {
