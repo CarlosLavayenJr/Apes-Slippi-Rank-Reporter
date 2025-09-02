@@ -45,7 +45,7 @@ client.on("interactionCreate", async (i) => {
         const snap = await fetchRankedByCode(code);
         return i.editReply(
             snap
-                ? `**${code.toUpperCase()}**\nSeason: ${snap.season}\nRating: ${snap.rating}\nW/L: ${snap.wins}-${snap.losses}\nRank: ${snap.rank}`
+                ? `**${code.toUpperCase()}**\nSeason: ${snap.season}\nRating: ${Math.round(snap.rating * 10) / 10}\nW/L: ${snap.wins}-${snap.losses}\nRank: ${snap.rank}`
                 : "No ranked profile found."
         );
     }
@@ -85,7 +85,7 @@ client.on("interactionCreate", async (i) => {
             const medal = index === 0 ? "🥇" : index === 1 ? "🥈" : index === 2 ? "🥉" : `#${index + 1}`;
             embed.addFields({
                 name: `${medal} ${player.code} (${player.rank})`,
-                value: `Rating: ${player.rating} | W/L: ${player.wins}-${player.losses} | Winrate: ${Math.round((player.wins / (player.wins + player.losses)) * 100)}%`,
+                value: `Rating: ${Math.round(player.rating * 10) / 10} | W/L: ${player.wins}-${player.losses} | Winrate: ${Math.round((player.wins / (player.wins + player.losses)) * 100)}%`,
                 inline: false
             });
         });

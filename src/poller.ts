@@ -1,6 +1,6 @@
-import { Client, EmbedBuilder, TextChannel } from "discord.js";
-import { fetchRankedByCode, Snapshot } from "./slippi";
-import { watch, listCodes } from "./watchStore";
+import {Client, EmbedBuilder, TextChannel} from "discord.js";
+import {fetchRankedByCode, Snapshot} from "./slippi";
+import {watch, listCodes} from "./watchStore";
 
 const cache = new Map<string, Snapshot>(); // by connectCode
 
@@ -30,20 +30,29 @@ export function startPolling(client: Client, channelIdEnv = "DEFAULT_CHANNEL_ID"
                         const embed = new EmbedBuilder()
                             .setTitle(`${code} — ${fresh.season ?? "season ?"}`)
                             .addFields(
-                                { name: "Rating", value: prev ? `${prev.rating} → ${fresh.rating}` : `${fresh.rating}`, inline: true },
-                                { name: "W/L", value: prev ? `${prev.wins}-${prev.losses} → ${fresh.wins}-${fresh.losses}` : `${fresh.wins}-${fresh.losses}`, inline: true },
-                                { name: "Rank", value: `${fresh.rank ?? "?"}`, inline: true },
+                                {
+                                    name: "Rating",
+                                    value: prev ? `${Math.round(prev.rating * 10) / 10} → ${Math.round(fresh.rating * 10) / 10}` : `${Math.round(fresh.rating * 10) / 10}`,
+                                    inline: true
+                                },
+                                {
+                                    name: "W/L",
+                                    value: prev ? `${prev.wins}-${prev.losses} → ${fresh.wins}-${fresh.losses}` : `${fresh.wins}-${fresh.losses}`,
+                                    inline: true
+                                },
+                                {name: "Rank", value: `${fresh.rank ?? "?"}`, inline: true},
                             )
                             .setTimestamp(new Date());
-                        await (channel as TextChannel).send({ embeds: [embed] });
+                        await (channel as TextChannel).send({embeds: [embed]});
                     }
                 }
-            } catch { /* swallow and continue */ }
+            } catch { /* swallow and continue */
+            }
             await sleep(750); // gentle pacing (~1.3 req/s)
         }
-        setTimeout(run, 12_000 + Math.random()*3000); // 12–15s cadence
+        setTimeout(run, 12_000 + Math.random() * 3000); // 12–15s cadence
     };
     run();
 }
 
-const sleep = (ms:number)=>new Promise(r=>setTimeout(r,ms));
+const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
