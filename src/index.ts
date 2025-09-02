@@ -3,6 +3,7 @@ import { addCode, removeCode, listCodes } from "./watchStore";
 import { fetchRankedByCode } from "./slippi";
 import "dotenv/config";
 import { startPolling } from "./poller";
+import { EmbedBuilder } from "discord.js";
 
 console.log("[boot] NODE_ENV:", process.env.NODE_ENV);
 console.log("[boot] SLIPPI_GQL_ENDPOINT:", process.env.SLIPPI_GQL_ENDPOINT || "(unset)");
@@ -53,6 +54,50 @@ client.on("interactionCreate", async (i) => {
                 ? `**${code.toUpperCase()}**\nSeason: ${snap.season}\nRating: ${snap.rating}\nW/L: ${snap.wins}-${snap.losses}\nRank: ${snap.rank}`
                 : "No ranked profile found."
         );
+    }
+    // Add this to your interaction handler in index.ts
+    if (i.commandName === "leaderboard") {
+        await i.deferReply();
+        
+        const gid = i.guildId!;
+        const codes = listCodes(gid);
+        
+        if (codes.length === 0) {
+            return i.editReply("No players in the watchlist. Add players with `/watch add`.");
+        }
+        
+        // Fetch data for all players
+        const players = [];
+        for (const code of codes) {
+            const data = await fetchRankedByCode(code);
+            if (data) {
+                players.push({
+                    code: code,
+                    ...data
+                });
+            }
+        }
+        
+        // Sort players by rating (highest first)
+        players.sort((a, b) => b.rating - a.rating);
+        
+        // Create a formatted leaderboard message
+        const embed = new EmbedBuilder()
+            .setTitle("🏆 Slippi Ranked Leaderboard")
+            .setDescription(`Showing ${players.length} players`)
+            .setTimestamp(new Date());
+        
+        // Add fields for each player
+        players.forEach((player, index) => {
+            const medal = index === 0 ? "🥇" : index === 1 ? "🥈" : index === 2 ? "🥉" : `#${index + 1}`;
+            embed.addFields({
+                name: `${medal} ${player.code} (${player.rank})`,
+                value: `Rating: ${player.rating} | W/L: ${player.wins}-${player.losses} | Winrate: ${Math.round((player.wins / (player.wins + player.losses)) * 100)}%`,
+                inline: false
+            });
+        });
+        
+        return i.editReply({ embeds: [embed] });
     }
 });
 

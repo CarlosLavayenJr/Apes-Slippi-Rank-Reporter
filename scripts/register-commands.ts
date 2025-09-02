@@ -1,8 +1,8 @@
 import "dotenv/config";
-import { REST, Routes, SlashCommandBuilder } from "discord.js";
+import {REST, Routes, SlashCommandBuilder} from "discord.js";
 
-const appId  = process.env.DISCORD_APP_ID!;
-const token  = process.env.DISCORD_TOKEN!;
+const appId = process.env.DISCORD_APP_ID!;
+const token = process.env.DISCORD_TOKEN!;
 const guildId = process.env.DISCORD_GUILD_ID!; // <- use guild route for instant install
 
 const commands = [
@@ -10,7 +10,8 @@ const commands = [
     new SlashCommandBuilder()
         .setName("rank")
         .setDescription("fetch ranked data")
-        .addStringOption(o=>o.setName("code").setDescription("ABCD#123").setRequired(true)),
+        .addStringOption(o => o.setName("code").setDescription("ABCD#123").setRequired(true)),
+
 
     new SlashCommandBuilder()
         .setName("watch")
@@ -19,13 +20,18 @@ const commands = [
             .addStringOption(o => o.setName("code").setDescription("ABCD#123").setRequired(true)))
         .addSubcommand(s => s.setName("remove").setDescription("remove code")
             .addStringOption(o => o.setName("code").setDescription("ABCD#123").setRequired(true)))
-        .addSubcommand(s => s.setName("list").setDescription("list codes"))
+        .addSubcommand(s => s.setName("list").setDescription("list codes")),
+
+    new SlashCommandBuilder()
+        .setName("leaderboard")
+        .setDescription("Display a ranked leaderboard of watched players")
 ].map(c => c.toJSON());
 
-const rest = new REST({ version: "10" }).setToken(token);
+const rest = new REST({version: "10"}).setToken(token);
 
 async function main() {
-    await rest.put(Routes.applicationGuildCommands(appId, guildId), { body: commands });
+    await rest.put(Routes.applicationGuildCommands(appId, guildId), {body: commands});
     console.log("Registered guild commands");
 }
+
 main().catch(console.error);
