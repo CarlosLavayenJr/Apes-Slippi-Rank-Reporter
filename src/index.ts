@@ -1,21 +1,15 @@
-import { Client, GatewayIntentBits } from "discord.js";
+import { Client, GatewayIntentBits, EmbedBuilder } from "discord.js";
 import { addCode, removeCode, listCodes } from "./watchStore";
 import { fetchRankedByCode } from "./slippi";
 import "dotenv/config";
 import { startPolling } from "./poller";
-import { EmbedBuilder } from "discord.js";
+import { registerCommandHandlers } from "./commands";
 
-console.log("[boot] NODE_ENV:", process.env.NODE_ENV);
-console.log("[boot] SLIPPI_GQL_ENDPOINT:", process.env.SLIPPI_GQL_ENDPOINT || "(unset)");
-
-process.on("unhandledRejection", (err) => {
-    console.error("[unhandledRejection]", err);
-});
-process.on("uncaughtException", (err) => {
-    console.error("[uncaughtException]", err);
-});
-
+// Initialize the client
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
+
+// Register additional command handlers from commands.ts
+registerCommandHandlers(client);
 
 client.on("error", (err) => console.error("[client error]", err));
 
@@ -55,17 +49,16 @@ client.on("interactionCreate", async (i) => {
                 : "No ranked profile found."
         );
     }
-    // Add this to your interaction handler in index.ts
     if (i.commandName === "leaderboard") {
         await i.deferReply();
-        
+
         const gid = i.guildId!;
         const codes = listCodes(gid);
-        
+
         if (codes.length === 0) {
             return i.editReply("No players in the watchlist. Add players with `/watch add`.");
         }
-        
+
         // Fetch data for all players
         const players = [];
         for (const code of codes) {
@@ -77,16 +70,16 @@ client.on("interactionCreate", async (i) => {
                 });
             }
         }
-        
+
         // Sort players by rating (highest first)
         players.sort((a, b) => b.rating - a.rating);
-        
+
         // Create a formatted leaderboard message
         const embed = new EmbedBuilder()
             .setTitle("🏆 Slippi Ranked Leaderboard")
             .setDescription(`Showing ${players.length} players`)
             .setTimestamp(new Date());
-        
+
         // Add fields for each player
         players.forEach((player, index) => {
             const medal = index === 0 ? "🥇" : index === 1 ? "🥈" : index === 2 ? "🥉" : `#${index + 1}`;
@@ -96,16 +89,30 @@ client.on("interactionCreate", async (i) => {
                 inline: false
             });
         });
-        
+
         return i.editReply({ embeds: [embed] });
     }
 });
 
-client.once("clientReady", () => {
+// Fix the event name from "clientReady" to "ready"
+client.once("ready", () => {
     console.log(`Logged in as ${client.user?.tag}`);
     startPolling(client);
 });
 
+// Add some console logs to help with debugging
+console.log("[boot] NODE_ENV:", process.env.NODE_ENV);
+console.log("[boot] SLIPPI_GQL_ENDPOINT:", process.env.SLIPPI_GQL_ENDPOINT || "(unset)");
+
+// Set up error handling
+process.on("unhandledRejection", (err) => {
+    console.error("[unhandledRejection]", err);
+});
+process.on("uncaughtException", (err) => {
+    console.error("[uncaughtException]", err);
+});
+
+// Log in with the bot token
 client.login(process.env.DISCORD_TOKEN)
     .then(() => console.log("Login successful"))
     .catch(err => console.error("Login failed:", err));
