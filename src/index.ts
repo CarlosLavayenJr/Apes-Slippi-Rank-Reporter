@@ -1,5 +1,5 @@
 import { Client, GatewayIntentBits, EmbedBuilder } from "discord.js";
-import { addCode, removeCode, listCodes } from "./watchStore";
+import { addToWatchList, removeFromWatchList, listWatchList } from "./watchlist";
 import { fetchRankedByCode } from "./slippi";
 import "dotenv/config";
 import { startPolling } from "./poller";
@@ -20,19 +20,18 @@ client.on("interactionCreate", async (i) => {
 
     if (i.commandName === "watch") {
         const sub = i.options.getSubcommand();
-        const gid = i.guildId!;
         if (sub === "add") {
             const code = i.options.getString("code", true);
-            addCode(gid, code);
+            addToWatchList(code.toUpperCase());
             return i.reply(`Added **${code.toUpperCase()}**`);
         }
         if (sub === "remove") {
             const code = i.options.getString("code", true);
-            removeCode(gid, code);
+            removeFromWatchList(code.toUpperCase());
             return i.reply(`Removed **${code.toUpperCase()}**`);
         }
         if (sub === "list") {
-            const list = listCodes(gid);
+            const list = listWatchList();
             return i.reply(list.length ? list.join(", ") : "No codes yet.");
         }
     }
@@ -52,8 +51,7 @@ client.on("interactionCreate", async (i) => {
     if (i.commandName === "leaderboard") {
         await i.deferReply();
 
-        const gid = i.guildId!;
-        const codes = listCodes(gid);
+        const codes = listWatchList();
 
         if (codes.length === 0) {
             return i.editReply("No players in the watchlist. Add players with `/watch add`.");
