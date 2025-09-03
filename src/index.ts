@@ -18,7 +18,7 @@ client.on("interactionCreate", async (i) => {
 
     if (i.commandName === "ping") return i.reply("pong");
 
-    if (i.commandName === "watch") {
+    if (i.commandName === "apebot") {
         const sub = i.options.getSubcommand();
         if (sub === "add") {
             const code = i.options.getString("code", true);
