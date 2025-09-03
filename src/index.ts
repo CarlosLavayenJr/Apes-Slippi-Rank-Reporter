@@ -19,7 +19,8 @@ client.on("interactionCreate", async (i) => {
 
     if (i.commandName === "ping") return i.reply("pong");
 
-    if (i.commandName === "watch") {
+    // Changed from "watch" to "apebot" to match registered commands
+    if (i.commandName === "apebot") {
         const sub = i.options.getSubcommand();
         if (sub === "add") {
             const code = i.options.getString("code", true);
@@ -82,7 +83,7 @@ client.on("interactionCreate", async (i) => {
         const codes = listWatchList();
 
         if (codes.length === 0) {
-            return i.editReply("No players in the watchlist. Add players with `/watch add`.");
+            return i.editReply("No players in the watchlist. Add players with `/apebot add`.");
         }
 
         // Fetch data for all players
