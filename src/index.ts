@@ -1,12 +1,12 @@
 import {Client, EmbedBuilder, TextChannel} from "discord.js";
 import {fetchRankedByCode, Snapshot, createRankAttachment} from "./slippi";
-import {listWatchList} from "./watchlist"; // Import the correct function
+import {listWatchList} from "./watchlist";
 
 const cache = new Map<string, Snapshot>(); // by connectCode
 
 export function startPolling(client: Client, channelIdEnv = "DEFAULT_CHANNEL_ID") {
     const run = async () => {
-        const allCodes = listWatchList(); // This now uses the file-based watchlist
+        const allCodes = listWatchList();
 
         const channelId = process.env[channelIdEnv];
         const channel = channelId ? await client.channels.fetch(channelId) : null;
