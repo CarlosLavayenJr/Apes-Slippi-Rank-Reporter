@@ -41,17 +41,28 @@ export function startPolling(client: Client, channelIdEnv = "DEFAULT_CHANNEL_ID"
                                 },
                                 {name: "Rank", value: `${fresh.rank ?? "?"}`, inline: true},
                             )
-                            .setImage("attachment://rank.svg")
                             .setTimestamp(new Date());
-                            
+
                         const rankAttachment = createRankAttachment(fresh.rank ?? "");
-                        await (channel as TextChannel).send({
-                            embeds: [embed],
-                            files: [rankAttachment]
-                        });
+                        
+                        // Only add image and attachment if file exists
+                        if (rankAttachment) {
+                            embed.setImage("attachment://rank.svg");
+                            await (channel as TextChannel).send({
+                                embeds: [embed],
+                                files: [rankAttachment]
+                            });
+                        } else {
+                            // Send without image if file doesn't exist
+                            console.warn(`[poller] No rank image available for rank: ${fresh.rank}`);
+                            await (channel as TextChannel).send({
+                                embeds: [embed]
+                            });
+                        }
                     }
                 }
-            } catch { /* swallow and continue */
+            } catch (error) {
+                console.error(`[poller] Error processing code ${code}:`, error);
             }
             await sleep(750); // gentle pacing (~1.3 req/s)
         }
