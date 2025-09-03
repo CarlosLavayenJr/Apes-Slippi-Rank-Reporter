@@ -119,7 +119,7 @@ function deriveRank(rating: number): string {
 export function getRankImagePath(rank: string): string {
     // For Bronze and Silver ranks, use the unknown rank image
     if (rank.startsWith("Bronze") || rank.startsWith("Silver")) {
-        return path.resolve(process.cwd(), "slippi ranks", "rank_Unkown.svg");
+        return path.resolve(process.cwd(), "slippi ranks", "rank_Unknown.svg");
     }
 
     // Map rank names to file names
