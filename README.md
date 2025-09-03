@@ -40,7 +40,7 @@ A Discord bot that tracks and reports Slippi ranked data for Super Smash Bros. M
 
 4. **Register Discord slash commands**
    ```bash
-   npx ts-node register-commands.ts
+   npx ts-node scripts/register-commands.ts
    ```
 
 5. **Build the project**
