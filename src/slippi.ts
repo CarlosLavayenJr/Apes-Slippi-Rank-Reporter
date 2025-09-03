@@ -1,4 +1,6 @@
 import "dotenv/config";
+import { AttachmentBuilder } from "discord.js";
+import * as path from "path";
 
 export const SLIPPI_ENDPOINT = "https://internal.slippi.gg/graphql";
 console.log("[slippi] endpoint =", SLIPPI_ENDPOINT);
@@ -93,13 +95,56 @@ type RankedResp = {
 };
 
 function deriveRank(rating: number): string {
-    if (rating >= 2350) return "Master+";
-    if (rating >= 2192) return "Master";
-    if (rating >= 2004) return "Diamond";
-    if (rating >= 1752) return "Platinum";
-    if (rating >= 1436) return "Gold";
-    if (rating >= 1055) return "Silver";
-    return "Bronze";
+    if (rating >= 2350) return "Master III";
+    if (rating >= 2275) return "Master II";
+    if (rating >= 2192) return "Master I";
+    if (rating >= 2137) return "Diamond III";
+    if (rating >= 2074) return "Diamond II";
+    if (rating >= 2004) return "Diamond I";
+    if (rating >= 1928) return "Platinum III";
+    if (rating >= 1843) return "Platinum II";
+    if (rating >= 1752) return "Platinum I";
+    if (rating >= 1654) return "Gold III";
+    if (rating >= 1549) return "Gold II";
+    if (rating >= 1436) return "Gold I";
+    if (rating >= 1316) return "Silver III";
+    if (rating >= 1189) return "Silver II";
+    if (rating >= 1055) return "Silver I";
+    if (rating >= 914) return "Bronze III";
+    if (rating >= 766) return "Bronze II";
+    return "Bronze I";
+}
+
+export function getRankImagePath(rank: string): string {
+    // For Bronze and Silver ranks, use the unknown rank image
+    if (rank.startsWith("Bronze") || rank.startsWith("Silver")) {
+        return path.join(__dirname, "../slippi ranks/rank_Unkown.svg");
+    }
+
+    // Map rank names to file names
+    const rankToFile: { [key: string]: string } = {
+        "Gold I": "rank_Gold_I.svg",
+        "Gold II": "rank_Gold_II.svg",
+        "Gold III": "rank_Gold_III.svg",
+        "Platinum I": "rank_Platinum_I.svg",
+        "Platinum II": "rank_Platinum_II.svg",
+        "Platinum III": "rank_Platinum_III.svg",
+        "Diamond I": "rank_Diamond_I.svg",
+        "Diamond II": "rank_Diamond_II.svg",
+        "Diamond III": "rank_Diamond_III.svg",
+        "Master I": "rank_Master_I.svg",
+        "Master II": "rank_Master_II.svg",
+        "Master III": "rank_Master_III.svg",
+        "Grandmaster": "rank_Grandmaster.svg"
+    };
+
+    const fileName = rankToFile[rank] || "rank_Unkown.svg";
+    return path.join(__dirname, "../slippi ranks", fileName);
+}
+
+export function createRankAttachment(rank: string): AttachmentBuilder {
+    const imagePath = getRankImagePath(rank);
+    return new AttachmentBuilder(imagePath, { name: "rank.svg" });
 }
 
 function getCurrentSeasonName(
@@ -107,25 +152,25 @@ function getCurrentSeasonName(
     profileHistory?: Array<{ season?: { id?: string; name?: string; status?: string } }>
 ): string | null {
     if (!currentProfile?.id) return null;
-    
+
     // Extract season from current profile ID (e.g., "RANKED_SINGLES-...-season-3")
     const match = currentProfile.id.match(/-([^-]+)$/);
     const currentSeasonId = match ? match[1] : null;
-    
+
     if (!currentSeasonId) return null;
-    
+
     // Try to find the season name in history
     const seasonInfo = profileHistory?.find(p => p.season?.id === currentSeasonId);
     if (seasonInfo?.season?.name) {
         return seasonInfo.season.name;
     }
-    
+
     // Fallback: format the season ID nicely
     if (currentSeasonId.startsWith('season-')) {
         const num = currentSeasonId.replace('season-', '');
         return `Season ${num}`;
     }
-    
+
     return currentSeasonId;
 }
 

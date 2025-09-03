@@ -12,7 +12,7 @@ const commands = [
         .addStringOption(o=>o.setName("code").setDescription("ABCD#123").setRequired(true)),
 
     new SlashCommandBuilder()
-        .setName("watch")
+        .setName("apebot")
         .setDescription("manage watchlist")
         .addSubcommand(s => s.setName("add").setDescription("add code")
             .addStringOption(o => o.setName("code").setDescription("ABCD#123").setRequired(true)))

@@ -1,6 +1,7 @@
+
 import { Client, GatewayIntentBits, EmbedBuilder } from "discord.js";
 import { addToWatchList, removeFromWatchList, listWatchList } from "./watchlist";
-import { fetchRankedByCode } from "./slippi";
+import { fetchRankedByCode, createRankAttachment } from "./slippi";
 import "dotenv/config";
 import { startPolling } from "./poller";
 import { registerCommandHandlers } from "./commands";
@@ -42,11 +43,38 @@ client.on("interactionCreate", async (i) => {
         await i.deferReply();
 
         const snap = await fetchRankedByCode(code);
-        return i.editReply(
-            snap
-                ? `**${code.toUpperCase()}**\nSeason: ${snap.season}\nRating: ${Math.round(snap.rating * 10) / 10}\nW/L: ${snap.wins}-${snap.losses}\nRank: ${snap.rank}`
-                : "No ranked profile found."
-        );
+        if (!snap) {
+            return i.editReply("No ranked profile found.");
+        }
+
+        const embed = new EmbedBuilder()
+            .setTitle(`${code.toUpperCase()} — ${snap.season ?? "season ?"}`)
+            .addFields(
+                {
+                    name: "Rating",
+                    value: `${Math.round(snap.rating * 10) / 10}`,
+                    inline: true
+                },
+                {
+                    name: "W/L",
+                    value: `${snap.wins}-${snap.losses}`,
+                    inline: true
+                },
+                {
+                    name: "Rank",
+                    value: `${snap.rank ?? "?"}`,
+                    inline: true
+                }
+            )
+            .setImage("attachment://rank.svg")
+            .setTimestamp(new Date());
+
+        const rankAttachment = createRankAttachment(snap.rank ?? "");
+
+        return i.editReply({
+            embeds: [embed],
+            files: [rankAttachment]
+        });
     }
     if (i.commandName === "leaderboard") {
         await i.deferReply();

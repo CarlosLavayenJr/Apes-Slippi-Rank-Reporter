@@ -1,5 +1,5 @@
 import {Client, EmbedBuilder, TextChannel} from "discord.js";
-import {fetchRankedByCode, Snapshot} from "./slippi";
+import {fetchRankedByCode, Snapshot, createRankAttachment} from "./slippi";
 import {listWatchList} from "./watchlist";
 
 const cache = new Map<string, Snapshot>(); // by connectCode
@@ -41,8 +41,14 @@ export function startPolling(client: Client, channelIdEnv = "DEFAULT_CHANNEL_ID"
                                 },
                                 {name: "Rank", value: `${fresh.rank ?? "?"}`, inline: true},
                             )
+                            .setImage("attachment://rank.svg")
                             .setTimestamp(new Date());
-                        await (channel as TextChannel).send({embeds: [embed]});
+                            
+                        const rankAttachment = createRankAttachment(fresh.rank ?? "");
+                        await (channel as TextChannel).send({
+                            embeds: [embed],
+                            files: [rankAttachment]
+                        });
                     }
                 }
             } catch { /* swallow and continue */
