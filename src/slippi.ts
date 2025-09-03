@@ -119,24 +119,24 @@ function deriveRank(rating: number): string {
 export function getRankImagePath(rank: string): string {
     // For Bronze and Silver ranks, use the unknown rank image
     if (rank.startsWith("Bronze") || rank.startsWith("Silver")) {
-        return path.resolve(process.cwd(), "slippi-ranks", "rank_Unknown.svg");
+        return path.resolve(process.cwd(), "slippi-ranks", "rank_Unknown.png");
     }
 
     // Map rank names to file names
     const rankToFile: { [key: string]: string } = {
-        "Gold I": "rank_Gold_I.svg",
-        "Gold II": "rank_Gold_II.svg",
-        "Gold III": "rank_Gold_III.svg",
-        "Platinum I": "rank_Platinum_I.svg",
-        "Platinum II": "rank_Platinum_II.svg",
-        "Platinum III": "rank_Platinum_III.svg",
-        "Diamond I": "rank_Diamond_I.svg",
-        "Diamond II": "rank_Diamond_II.svg",
-        "Diamond III": "rank_Diamond_III.svg",
-        "Master I": "rank_Master_I.svg",
-        "Master II": "rank_Master_II.svg",
-        "Master III": "rank_Master_III.svg",
-        "Grandmaster": "rank_Grandmaster.svg"
+        "Gold I": "rank_Gold_I.png",
+        "Gold II": "rank_Gold_II.png",
+        "Gold III": "rank_Gold_III.png",
+        "Platinum I": "rank_Platinum_I.png",
+        "Platinum II": "rank_Platinum_II.png",
+        "Platinum III": "rank_Platinum_III.png",
+        "Diamond I": "rank_Diamond_I.png",
+        "Diamond II": "rank_Diamond_II.png",
+        "Diamond III": "rank_Diamond_III.png",
+        "Master I": "rank_Master_I.png",
+        "Master II": "rank_Master_II.png",
+        "Master III": "rank_Master_III.png",
+        "Grandmaster": "rank_Grandmaster.png"
     };
 
     const fileName = rankToFile[rank] || "rank_Unknown.svg";
