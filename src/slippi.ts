@@ -155,7 +155,7 @@ export function createRankAttachment(rank: string): AttachmentBuilder | null {
     }
     
     console.log(`[slippi] Creating attachment for rank: ${rank}, path: ${imagePath}`);
-    return new AttachmentBuilder(imagePath, { name: "rank.svg" });
+    return new AttachmentBuilder(imagePath, { name: "rank.png" });
 }
 
 function getCurrentSeasonName(
