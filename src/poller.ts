@@ -47,7 +47,7 @@ export function startPolling(client: Client, channelIdEnv = "DEFAULT_CHANNEL_ID"
                         
                         // Only add image and attachment if file exists
                         if (rankAttachment) {
-                            embed.setImage("attachment://rank.svg");
+                            embed.setImage("attachment://rank.png");
                             await (channel as TextChannel).send({
                                 embeds: [embed],
                                 files: [rankAttachment]
