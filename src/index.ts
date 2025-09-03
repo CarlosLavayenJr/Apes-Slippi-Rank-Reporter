@@ -1,145 +1,74 @@
+import {Client, EmbedBuilder, TextChannel} from "discord.js";
+import {fetchRankedByCode, Snapshot, createRankAttachment} from "./slippi";
+import {listWatchList} from "./watchlist"; // Import the correct function
 
-import { Client, GatewayIntentBits, EmbedBuilder } from "discord.js";
-import { addToWatchList, removeFromWatchList, listWatchList } from "./watchlist";
-import { fetchRankedByCode, createRankAttachment } from "./slippi";
-import "dotenv/config";
-import { startPolling } from "./poller";
-import { registerCommandHandlers } from "./commands";
+const cache = new Map<string, Snapshot>(); // by connectCode
 
-// Initialize the client
-const client = new Client({ intents: [GatewayIntentBits.Guilds] });
+export function startPolling(client: Client, channelIdEnv = "DEFAULT_CHANNEL_ID") {
+    const run = async () => {
+        const allCodes = listWatchList(); // This now uses the file-based watchlist
 
-// Register additional command handlers from commands.ts
-registerCommandHandlers(client);
+        const channelId = process.env[channelIdEnv];
+        const channel = channelId ? await client.channels.fetch(channelId) : null;
 
-client.on("error", (err) => console.error("[client error]", err));
+        for (const code of allCodes) {
+            try {
+                const fresh = await fetchRankedByCode(code);
+                if (!fresh) continue;
+                const prev = cache.get(code);
+                const changed = !prev ||
+                    prev.rating !== fresh.rating ||
+                    prev.wins !== fresh.wins ||
+                    prev.losses !== fresh.losses ||
+                    prev.rank !== fresh.rank ||
+                    prev.season !== fresh.season;
 
-client.on("interactionCreate", async (i) => {
-    if (!i.isChatInputCommand()) return;
+                if (changed) {
+                    cache.set(code, fresh);
+                    if (channel && channel.isTextBased()) {
+                        const embed = new EmbedBuilder()
+                            .setTitle(`${code} — ${fresh.season ?? "season ?"}`)
+                            .addFields(
+                                {
+                                    name: "Rating",
+                                    value: prev ? `${Math.round(prev.rating * 10) / 10} → ${Math.round(fresh.rating * 10) / 10}` : `${Math.round(fresh.rating * 10) / 10}`,
+                                    inline: true
+                                },
+                                {
+                                    name: "W/L",
+                                    value: prev ? `${prev.wins}-${prev.losses} → ${fresh.wins}-${fresh.losses}` : `${fresh.wins}-${fresh.losses}`,
+                                    inline: true
+                                },
+                                {name: "Rank", value: `${fresh.rank ?? "?"}`, inline: true},
+                            )
+                            .setTimestamp(new Date());
 
-    if (i.commandName === "ping") return i.reply("pong");
+                        const rankAttachment = createRankAttachment(fresh.rank ?? "");
 
-    // Changed from "watch" to "apebot" to match registered commands
-    if (i.commandName === "apebot") {
-        const sub = i.options.getSubcommand();
-        if (sub === "add") {
-            const code = i.options.getString("code", true);
-            addToWatchList(code.toUpperCase());
-            return i.reply(`Added **${code.toUpperCase()}**`);
-        }
-        if (sub === "remove") {
-            const code = i.options.getString("code", true);
-            removeFromWatchList(code.toUpperCase());
-            return i.reply(`Removed **${code.toUpperCase()}**`);
-        }
-        if (sub === "list") {
-            const list = listWatchList();
-            return i.reply(list.length ? list.join(", ") : "No codes yet.");
-        }
-    }
-    if (i.commandName === "rank") {
-        const code = i.options.getString("code", true);
-
-        // Defer the reply to prevent timeout
-        await i.deferReply();
-
-        const snap = await fetchRankedByCode(code);
-        if (!snap) {
-            return i.editReply("No ranked profile found.");
-        }
-
-        const embed = new EmbedBuilder()
-            .setTitle(`${code.toUpperCase()} — ${snap.season ?? "season ?"}`)
-            .addFields(
-                {
-                    name: "Rating",
-                    value: `${Math.round(snap.rating * 10) / 10}`,
-                    inline: true
-                },
-                {
-                    name: "W/L",
-                    value: `${snap.wins}-${snap.losses}`,
-                    inline: true
-                },
-                {
-                    name: "Rank",
-                    value: `${snap.rank ?? "?"}`,
-                    inline: true
+                        // Only add image and attachment if file exists
+                        if (rankAttachment) {
+                            embed.setImage("attachment://rank.svg");
+                            await (channel as TextChannel).send({
+                                embeds: [embed],
+                                files: [rankAttachment]
+                            });
+                        } else {
+                            // Send without image if file doesn't exist
+                            console.warn(`[poller] No rank image available for rank: ${fresh.rank}`);
+                            await (channel as TextChannel).send({
+                                embeds: [embed]
+                            });
+                        }
+                    }
                 }
-            )
-            .setImage("attachment://rank.svg")
-            .setTimestamp(new Date());
-
-        const rankAttachment = createRankAttachment(snap.rank ?? "");
-
-        return i.editReply({
-            embeds: [embed],
-            files: [rankAttachment]
-        });
-    }
-    if (i.commandName === "leaderboard") {
-        await i.deferReply();
-
-        const codes = listWatchList();
-
-        if (codes.length === 0) {
-            return i.editReply("No players in the watchlist. Add players with `/apebot add`.");
-        }
-
-        // Fetch data for all players
-        const players = [];
-        for (const code of codes) {
-            const data = await fetchRankedByCode(code);
-            if (data) {
-                players.push({
-                    code: code,
-                    ...data
-                });
+            } catch (error) {
+                console.error(`[poller] Error processing code ${code}:`, error);
             }
+            await sleep(750); // gentle pacing (~1.3 req/s)
         }
+        setTimeout(run, 12_000 + Math.random() * 3000); // 12–15s cadence
+    };
+    run();
+}
 
-        // Sort players by rating (highest first)
-        players.sort((a, b) => b.rating - a.rating);
-
-        // Create a formatted leaderboard message
-        const embed = new EmbedBuilder()
-            .setTitle("🏆 Slippi Ranked Leaderboard")
-            .setDescription(`Showing ${players.length} players`)
-            .setTimestamp(new Date());
-
-        // Add fields for each player
-        players.forEach((player, index) => {
-            const medal = index === 0 ? "🥇" : index === 1 ? "🥈" : index === 2 ? "🥉" : `#${index + 1}`;
-            embed.addFields({
-                name: `${medal} ${player.code} (${player.rank})`,
-                value: `Rating: ${Math.round(player.rating * 10) / 10} | W/L: ${player.wins}-${player.losses} | Winrate: ${Math.round((player.wins / (player.wins + player.losses)) * 100)}%`,
-                inline: false
-            });
-        });
-
-        return i.editReply({ embeds: [embed] });
-    }
-});
-
-// Fix the event name from "clientReady" to "ready"
-client.once("ready", () => {
-    console.log(`Logged in as ${client.user?.tag}`);
-    startPolling(client);
-});
-
-// Add some console logs to help with debugging
-console.log("[boot] NODE_ENV:", process.env.NODE_ENV);
-console.log("[boot] SLIPPI_GQL_ENDPOINT:", process.env.SLIPPI_GQL_ENDPOINT || "(unset)");
-
-// Set up error handling
-process.on("unhandledRejection", (err) => {
-    console.error("[unhandledRejection]", err);
-});
-process.on("uncaughtException", (err) => {
-    console.error("[uncaughtException]", err);
-});
-
-// Log in with the bot token
-client.login(process.env.DISCORD_TOKEN)
-    .then(() => console.log("Login successful"))
-    .catch(err => console.error("Login failed:", err));
+const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));

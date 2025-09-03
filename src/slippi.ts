@@ -1,6 +1,7 @@
 import "dotenv/config";
 import { AttachmentBuilder } from "discord.js";
 import * as path from "path";
+import * as fs from "fs";
 
 export const SLIPPI_ENDPOINT = "https://internal.slippi.gg/graphql";
 console.log("[slippi] endpoint =", SLIPPI_ENDPOINT);
@@ -118,7 +119,7 @@ function deriveRank(rating: number): string {
 export function getRankImagePath(rank: string): string {
     // For Bronze and Silver ranks, use the unknown rank image
     if (rank.startsWith("Bronze") || rank.startsWith("Silver")) {
-        return path.join(__dirname, "../slippi ranks/rank_Unkown.svg");
+        return path.resolve(process.cwd(), "slippi ranks", "rank_Unkown.svg");
     }
 
     // Map rank names to file names
@@ -139,11 +140,19 @@ export function getRankImagePath(rank: string): string {
     };
 
     const fileName = rankToFile[rank] || "rank_Unkown.svg";
-    return path.join(__dirname, "../slippi ranks", fileName);
+    return path.resolve(process.cwd(), "slippi ranks", fileName);
 }
 
-export function createRankAttachment(rank: string): AttachmentBuilder {
+export function createRankAttachment(rank: string): AttachmentBuilder | null {
     const imagePath = getRankImagePath(rank);
+    
+    // Check if file exists before creating attachment
+    if (!fs.existsSync(imagePath)) {
+        console.error(`[slippi] Rank image not found: ${imagePath}`);
+        return null;
+    }
+    
+    console.log(`[slippi] Creating attachment for rank: ${rank}, path: ${imagePath}`);
     return new AttachmentBuilder(imagePath, { name: "rank.svg" });
 }
 
