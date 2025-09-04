@@ -66,7 +66,7 @@ export function startPolling(client: Client, channelIdEnv = "DEFAULT_CHANNEL_ID"
             }
             await sleep(750); // gentle pacing (~1.3 req/s)
         }
-        setTimeout(run, 12_000 + Math.random() * 3000); // 12–15s cadence
+        setTimeout(run, 90_000 + Math.random() * 3000); // 90s cadence
     };
     run();
 }
