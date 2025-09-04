@@ -6,6 +6,8 @@ import * as fs from "fs";
 export const SLIPPI_ENDPOINT = "https://internal.slippi.gg/graphql";
 console.log("[slippi] endpoint =", SLIPPI_ENDPOINT);
 
+//Jape Was Here Niggas
+
 // Updated query to match the working curl
 const query = `
 fragment profileFields on NetplayProfile {
