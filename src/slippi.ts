@@ -98,6 +98,7 @@ type RankedResp = {
 };
 
 function deriveRank(rating: number): string {
+    if (rating >= 2450) return "Grandmaster";
     if (rating >= 2350) return "Master III";
     if (rating >= 2275) return "Master II";
     if (rating >= 2192) return "Master I";
