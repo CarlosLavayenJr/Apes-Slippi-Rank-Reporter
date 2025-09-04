@@ -86,7 +86,6 @@ src/
 ├── slippi.ts         # Slippi API integration
 ├── poller.ts         # Automatic polling for updates
 ├── watchlist.ts      # Watchlist management
-├── watchStore.ts     # Watchlist data storage
 └── commands.ts       # Additional command handlers
 ```
 ## Configuration

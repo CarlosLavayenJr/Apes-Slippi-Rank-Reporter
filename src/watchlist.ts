@@ -8,8 +8,8 @@ interface WatchList {
 }
 
 // Path to the data directory and file
-const DATA_DIR = path.join(process.cwd(), 'data');
-const WATCHLIST_PATH = path.join(DATA_DIR, 'watchlist.json');
+const DATA_DIR = "/data"; // Use the disk mount path from Render
+const WATCHLIST_PATH = path.join(DATA_DIR, "watchlist.json");
 
 // Initialize the data directory and file if they don't exist
 function initializeStorage(): void {
