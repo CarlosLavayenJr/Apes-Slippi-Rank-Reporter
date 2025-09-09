@@ -75,6 +75,25 @@ export type Snapshot = {
     rank: string | null;
 };
 
+export type Character = {
+    character: number;
+    gameCount: number;
+};
+
+export type ProfileData = {
+    displayName?: string;
+    currentProfile: Snapshot;
+    topCharacters: Character[];
+    totalGames: number;
+    pastSeasons: Array<{
+        seasonName: string;
+        rating: number;
+        rank: string;
+        wins: number;
+        losses: number;
+    }>;
+};
+
 type RankedResp = {
     data?: {
         getUser?: {
@@ -84,8 +103,20 @@ type RankedResp = {
                 ratingOrdinal?: number;
                 wins?: number;
                 losses?: number;
+                characters?: Array<{
+                    character: number;
+                    gameCount: number;
+                }>;
             };
             rankedNetplayProfileHistory?: Array<{
+                id?: string;
+                ratingOrdinal?: number;
+                wins?: number;
+                losses?: number;
+                characters?: Array<{
+                    character: number;
+                    gameCount: number;
+                }>;
                 season?: {
                     id?: string;
                     name?: string;
@@ -119,6 +150,38 @@ function deriveRank(rating: number): string {
     return "Bronze I";
 }
 
+function getCharacterName(charId: number): string {
+    const chars: { [key: number]: string } = {
+        0: "Captain Falcon",
+        1: "Donkey Kong",
+        2: "Fox",
+        3: "Mr. Game & Watch",
+        4: "Kirby",
+        5: "Bowser",
+        6: "Link",
+        7: "Luigi",
+        8: "Mario",
+        9: "Marth",
+        10: "Mewtwo",
+        11: "Ness",
+        12: "Peach",
+        13: "Pikachu",
+        14: "Ice Climbers",
+        15: "Jigglypuff",
+        16: "Samus",
+        17: "Yoshi",
+        18: "Zelda",
+        19: "Sheik",
+        20: "Falco",
+        21: "Young Link",
+        22: "Dr. Mario",
+        23: "Roy",
+        24: "Pichu",
+        25: "Ganondorf"
+    };
+    return chars[charId] || `Character ${charId}`;
+}
+
 export function getRankImagePath(rank: string): string {
     // For Bronze and Silver ranks, use the unknown rank image
     if (rank.startsWith("Bronze") || rank.startsWith("Silver")) {
@@ -150,13 +213,13 @@ export function getRankImagePath(rank: string): string {
 
 export function createRankAttachment(rank: string): AttachmentBuilder | null {
     const imagePath = getRankImagePath(rank);
-    
+
     // Check if file exists before creating attachment
     if (!fs.existsSync(imagePath)) {
         console.error(`[slippi] Rank image not found: ${imagePath}`);
         return null;
     }
-    
+
     console.log(`[slippi] Creating attachment for rank: ${rank}, path: ${imagePath}`);
     return new AttachmentBuilder(imagePath, { name: "rank.png" });
 }
@@ -253,3 +316,90 @@ export async function fetchRankedByCode(code: string): Promise<Snapshot | null> 
         rank: deriveRank(rating),
     };
 }
+
+export async function fetchProfileByCode(code: string): Promise<ProfileData | null> {
+    const cc = code.toUpperCase().trim();
+    const payload = {
+        operationName: "UserProfilePageQuery",
+        variables: { cc, uid: cc },
+        query,
+    };
+
+    let r: Response;
+    try {
+        r = await fetch(SLIPPI_ENDPOINT, {
+            method: "POST",
+            redirect: "manual",
+            headers: {
+                "content-type": "application/json",
+                "accept": "application/json",
+            },
+            body: JSON.stringify(payload),
+        });
+    } catch (e) {
+        console.error("[slippi] network error:", e);
+        return null;
+    }
+
+    const ct = r.headers.get("content-type") || "";
+    if (!ct.includes("application/json")) {
+        const text = await r.text();
+        console.error("[slippi] NON-JSON (first 200):", text.slice(0, 200));
+        return null;
+    }
+
+    let json: RankedResp;
+    try {
+        json = (await r.json()) as RankedResp;
+    } catch (e) {
+        console.error("[slippi] JSON parse error:", e);
+        return null;
+    }
+
+    const user = json.data?.getUser;
+    const currentProf = user?.rankedNetplayProfile;
+    if (!currentProf) {
+        console.log("[slippi] no ranked profile found for", cc);
+        return null;
+    }
+
+    const currentSeason = getCurrentSeasonName(currentProf, user?.rankedNetplayProfileHistory);
+    const currentRating = Number(currentProf.ratingOrdinal ?? 0);
+
+    // Get top 3 characters by game count
+    const characters = currentProf.characters || [];
+    const topCharacters = characters
+        .sort((a, b) => b.gameCount - a.gameCount)
+        .slice(0, 3);
+
+    // Calculate total games
+    const totalGames = characters.reduce((sum, char) => sum + char.gameCount, 0);
+
+    // Get past season data
+    const pastSeasons = (user?.rankedNetplayProfileHistory || [])
+        .filter(p => p.season?.status !== "ACTIVE") // Exclude current season
+        .map(p => ({
+            seasonName: p.season?.name || `Season ${p.season?.id}`,
+            rating: Number(p.ratingOrdinal ?? 0),
+            rank: deriveRank(Number(p.ratingOrdinal ?? 0)),
+            wins: Number(p.wins ?? 0),
+            losses: Number(p.losses ?? 0)
+        }))
+        .sort((a, b) => b.rating - a.rating); // Sort by rating, highest first
+
+    return {
+        displayName: user?.displayName,
+        currentProfile: {
+            season: currentSeason,
+            rating: currentRating,
+            wins: Number(currentProf.wins ?? 0),
+            losses: Number(currentProf.losses ?? 0),
+            rank: deriveRank(currentRating),
+        },
+        topCharacters,
+        totalGames,
+        pastSeasons: pastSeasons.slice(0, 5) // Limit to last 5 seasons
+    };
+}
+
+export { getCharacterName };

@@ -1,6 +1,6 @@
 import { Client, GatewayIntentBits, EmbedBuilder } from "discord.js";
 import { addToWatchList, removeFromWatchList, listWatchList } from "./watchlist";
-import { fetchRankedByCode, createRankAttachment } from "./slippi";
+import { fetchRankedByCode, createRankAttachment, fetchProfileByCode, getCharacterName } from "./slippi";
 import "dotenv/config";
 import { startPolling } from "./poller";
 import { registerCommandHandlers } from "./commands";
@@ -35,6 +35,84 @@ client.on("interactionCreate", async (i) => {
             return i.reply(list.length ? list.join(", ") : "No codes yet.");
         }
     }
+
+    if (i.commandName === "profile") {
+        const code = i.options.getString("code", true);
+
+        // Defer the reply to prevent timeout
+        await i.deferReply();
+
+        const profile = await fetchProfileByCode(code);
+        if (!profile) {
+            return i.editReply("No ranked profile found.");
+        }
+
+        const embed = new EmbedBuilder()
+            .setTitle(`${code.toUpperCase()} ${profile.displayName ? `(${profile.displayName})` : ""}`)
+            .setColor(0x00AE86);
+
+        // Current season info
+        embed.addFields({
+            name: `📈 Current Season - ${profile.currentProfile.season || "Unknown"}`,
+            value: `**${profile.currentProfile.rank}** (${Math.round(profile.currentProfile.rating * 10) / 10})\n` +
+                `${profile.currentProfile.wins}W - ${profile.currentProfile.losses}L ` +
+                `(${Math.round((profile.currentProfile.wins / (profile.currentProfile.wins + profile.currentProfile.losses)) * 100)}% WR)`,
+            inline: false
+        });
+
+        // Top characters
+        if (profile.topCharacters.length > 0) {
+            const charText = profile.topCharacters
+                .map((char, index) => {
+                    const percentage = Math.round((char.gameCount / profile.totalGames) * 100);
+                    const medal = index === 0 ? "🥇" : index === 1 ? "🥈" : "🥉";
+                    return `${medal} ${getCharacterName(char.character)} - ${char.gameCount} games (${percentage}%)`;
+                })
+                .join("\n");
+
+            embed.addFields({
+                name: `🎮 Top Characters (${profile.totalGames} total games)`,
+                value: charText,
+                inline: false
+            });
+        }
+
+        // Past seasons
+        if (profile.pastSeasons.length > 0) {
+            const seasonText = profile.pastSeasons
+                .slice(0, 3) // Show top 3 past seasons
+                .map(season => {
+                    const winrate = Math.round((season.wins / (season.wins + season.losses)) * 100);
+                    return `**${season.seasonName}**: ${season.rank} (${Math.round(season.rating * 10) / 10}) - ${season.wins}W/${season.losses}L (${winrate}%)`;
+                })
+                .join("\n");
+
+            embed.addFields({
+                name: "🏆 Past Season Ranks",
+                value: seasonText,
+                inline: false
+            });
+        }
+
+        embed.setTimestamp(new Date());
+
+
+        const rankAttachment = createRankAttachment(profile.currentProfile.rank ?? "");
+        // Check if attachment exists before adding it
+        if (rankAttachment) {
+            embed.setImage("attachment://rank.png");
+            return i.editReply({
+                embeds: [embed],
+                files: [rankAttachment]
+            });
+        } else {
+            // Send without attachment if file doesn't exist
+            return i.editReply({
+                embeds: [embed]
+            });
+        }
+    }
+
     if (i.commandName === "rank") {
         const code = i.options.getString("code", true);
 
