@@ -1,5 +1,5 @@
 import "dotenv/config";
-import { AttachmentBuilder } from "discord.js";
+import {AttachmentBuilder} from "discord.js";
 import * as path from "path";
 import * as fs from "fs";
 
@@ -73,6 +73,7 @@ export type Snapshot = {
     wins: number;
     losses: number;
     rank: string | null;
+    globalPlacement?: number; // Add global placement to the snapshot
 };
 
 type RankedResp = {
@@ -84,6 +85,7 @@ type RankedResp = {
                 ratingOrdinal?: number;
                 wins?: number;
                 losses?: number;
+                dailyGlobalPlacement?: number; // Add this field
             };
             rankedNetplayProfileHistory?: Array<{
                 season?: {
@@ -97,7 +99,13 @@ type RankedResp = {
     errors?: unknown;
 };
 
-function deriveRank(rating: number): string {
+function deriveRank(rating: number, globalPlacement?: number): string {
+    // Special condition: top 300 globally get Grandmaster rank
+    if (globalPlacement !== undefined && globalPlacement <= 300) {
+        return "Grandmaster";
+    }
+    
+    // Original rank derivation based on rating
     if (rating >= 2450) return "Grandmaster";
     if (rating >= 2350) return "Master III";
     if (rating >= 2275) return "Master II";
@@ -150,15 +158,15 @@ export function getRankImagePath(rank: string): string {
 
 export function createRankAttachment(rank: string): AttachmentBuilder | null {
     const imagePath = getRankImagePath(rank);
-    
+
     // Check if file exists before creating attachment
     if (!fs.existsSync(imagePath)) {
         console.error(`[slippi] Rank image not found: ${imagePath}`);
         return null;
     }
-    
+
     console.log(`[slippi] Creating attachment for rank: ${rank}, path: ${imagePath}`);
-    return new AttachmentBuilder(imagePath, { name: "rank.png" });
+    return new AttachmentBuilder(imagePath, {name: "rank.png"});
 }
 
 function getCurrentSeasonName(
@@ -244,12 +252,14 @@ export async function fetchRankedByCode(code: string): Promise<Snapshot | null> 
 
     const season = getCurrentSeasonName(prof, user?.rankedNetplayProfileHistory);
     const rating = Number(prof.ratingOrdinal ?? 0);
+    const globalPlacement = prof.dailyGlobalPlacement;
 
     return {
         season,
         rating,
         wins: Number(prof.wins ?? 0),
         losses: Number(prof.losses ?? 0),
-        rank: deriveRank(rating),
+        rank: deriveRank(rating, globalPlacement),
+        globalPlacement,
     };
 }

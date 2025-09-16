@@ -26,6 +26,11 @@ export function startPolling(client: Client, channelIdEnv = "DEFAULT_CHANNEL_ID"
                 if (changed) {
                     cache.set(code, fresh);
                     if (channel && channel.isTextBased()) {
+                        // Add global placement info to embed if available and in top 300
+                        const rankDisplay = fresh.globalPlacement && fresh.globalPlacement <= 300 
+                            ? `${fresh.rank ?? "?"} (Global #${fresh.globalPlacement})` 
+                            : `${fresh.rank ?? "?"}`;
+
                         const embed = new EmbedBuilder()
                             .setTitle(`${code} — ${fresh.season ?? "season ?"}`)
                             .addFields(
@@ -39,7 +44,7 @@ export function startPolling(client: Client, channelIdEnv = "DEFAULT_CHANNEL_ID"
                                     value: prev ? `${prev.wins}-${prev.losses} → ${fresh.wins}-${fresh.losses}` : `${fresh.wins}-${fresh.losses}`,
                                     inline: true
                                 },
-                                {name: "Rank", value: `${fresh.rank ?? "?"}`, inline: true},
+                                {name: "Rank", value: rankDisplay, inline: true},
                             )
                             .setTimestamp(new Date());
 
