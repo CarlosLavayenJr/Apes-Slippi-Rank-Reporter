@@ -141,8 +141,8 @@ type RankedResp = {
 };
 
 function deriveRank(rating: number, globalPlacement?: number): string {
-    // Special condition: top 300 globally get Grandmaster rank
-    if (globalPlacement !== undefined && globalPlacement <= 300) {
+    // Special condition: top 300 globally get Grandmaster rank (only if they're actually in top 300)
+    if (globalPlacement !== undefined && globalPlacement > 0 && globalPlacement <= 300) {
         return "Grandmaster";
     }
     
