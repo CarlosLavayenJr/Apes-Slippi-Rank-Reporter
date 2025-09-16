@@ -76,6 +76,35 @@ export type Snapshot = {
     globalPlacement?: number; // Add global placement to the snapshot
 };
 
+export type Character = {
+    character: number;
+    gameCount: number;
+};
+
+export type SeasonProfile = {
+    season: string;
+    seasonName: string;
+    rating: number;
+    wins: number;
+    losses: number;
+    rank: string;
+};
+
+export type Profile = {
+    displayName?: string;
+    currentProfile: {
+        season: string | null;
+        rating: number;
+        wins: number;
+        losses: number;
+        rank: string | null;
+        globalPlacement?: number;
+    };
+    topCharacters: Character[];
+    totalGames: number;
+    pastSeasons: SeasonProfile[];
+};
+
 type RankedResp = {
     data?: {
         getUser?: {
@@ -86,8 +115,20 @@ type RankedResp = {
                 wins?: number;
                 losses?: number;
                 dailyGlobalPlacement?: number; // Add this field
+                characters?: Array<{
+                    character?: number;
+                    gameCount?: number;
+                }>;
             };
             rankedNetplayProfileHistory?: Array<{
+                id?: string;
+                ratingOrdinal?: number;
+                wins?: number;
+                losses?: number;
+                characters?: Array<{
+                    character?: number;
+                    gameCount?: number;
+                }>;
                 season?: {
                     id?: string;
                     name?: string;
@@ -196,6 +237,40 @@ function getCurrentSeasonName(
     return currentSeasonId;
 }
 
+// Character ID to name mapping for Super Smash Bros. Melee
+const CHARACTER_NAMES: { [key: number]: string } = {
+    0: "Captain Falcon",
+    1: "Donkey Kong",
+    2: "Fox",
+    3: "Game & Watch",
+    4: "Kirby",
+    5: "Bowser",
+    6: "Link",
+    7: "Luigi",
+    8: "Mario",
+    9: "Marth",
+    10: "Mewtwo",
+    11: "Ness",
+    12: "Peach",
+    13: "Pikachu",
+    14: "Ice Climbers",
+    15: "Jigglypuff",
+    16: "Samus",
+    17: "Yoshi",
+    18: "Zelda",
+    19: "Sheik",
+    20: "Falco",
+    21: "Young Link",
+    22: "Dr. Mario",
+    23: "Roy",
+    24: "Pichu",
+    25: "Ganondorf"
+};
+
+export function getCharacterName(characterId: number): string {
+    return CHARACTER_NAMES[characterId] || `Unknown Character (${characterId})`;
+}
+
 export async function fetchRankedByCode(code: string): Promise<Snapshot | null> {
     const cc = code.toUpperCase().trim();
     const payload = {
@@ -261,5 +336,108 @@ export async function fetchRankedByCode(code: string): Promise<Snapshot | null> 
         losses: Number(prof.losses ?? 0),
         rank: deriveRank(rating, globalPlacement),
         globalPlacement,
+    };
+}
+
+export async function fetchProfileByCode(code: string): Promise<Profile | null> {
+    const cc = code.toUpperCase().trim();
+    const payload = {
+        operationName: "UserProfilePageQuery",
+        variables: { cc, uid: cc },
+        query,
+    };
+
+    let r: Response;
+    try {
+        r = await fetch(SLIPPI_ENDPOINT, {
+            method: "POST",
+            redirect: "manual",
+            headers: {
+                "content-type": "application/json",
+                "accept": "application/json",
+            },
+            body: JSON.stringify(payload),
+        });
+    } catch (e) {
+        console.error("[slippi] network error:", e);
+        return null;
+    }
+
+    const ct = r.headers.get("content-type") || "";
+    console.log(
+        "[slippi] fetchProfile -> status",
+        r.status,
+        "ct",
+        ct
+    );
+
+    if (!ct.includes("application/json")) {
+        const text = await r.text();
+        console.error("[slippi] NON-JSON (first 200):", text.slice(0, 200));
+        return null;
+    }
+
+    let json: RankedResp;
+    try {
+        json = (await r.json()) as RankedResp;
+        console.log("[slippi] profile success for", cc);
+    } catch (e) {
+        console.error("[slippi] JSON parse error:", e);
+        return null;
+    }
+
+    const user = json.data?.getUser;
+    const prof = user?.rankedNetplayProfile;
+    if (!prof) {
+        console.log("[slippi] no ranked profile found for", cc);
+        return null;
+    }
+
+    const season = getCurrentSeasonName(prof, user?.rankedNetplayProfileHistory);
+    const rating = Number(prof.ratingOrdinal ?? 0);
+    const globalPlacement = prof.dailyGlobalPlacement;
+
+    // Calculate total games from current profile characters
+    const totalGames = prof.characters?.reduce((total, char) => total + (char.gameCount || 0), 0) || 0;
+
+    // Get top 3 characters, sorted by game count
+    const topCharacters: Character[] = (prof.characters || [])
+        .map(char => ({
+            character: char.character || 0,
+            gameCount: char.gameCount || 0
+        }))
+        .sort((a, b) => b.gameCount - a.gameCount)
+        .slice(0, 3);
+
+    // Process past seasons
+    const pastSeasons: SeasonProfile[] = (user?.rankedNetplayProfileHistory || [])
+        .filter(history => history.season?.id !== prof.id?.match(/-([^-]+)$/)?.[1]) // Exclude current season
+        .map(history => {
+            const historyRating = Number(history.ratingOrdinal ?? 0);
+            return {
+                season: history.season?.id || '',
+                seasonName: history.season?.name || 'Unknown Season',
+                rating: historyRating,
+                wins: Number(history.wins ?? 0),
+                losses: Number(history.losses ?? 0),
+                rank: deriveRank(historyRating)
+            };
+        })
+        .sort((a, b) => b.rating - a.rating) // Sort by rating, highest first
+        .slice(0, 5); // Take top 5 seasons
+
+    return {
+        displayName: user?.displayName,
+        currentProfile: {
+            season,
+            rating,
+            wins: Number(prof.wins ?? 0),
+            losses: Number(prof.losses ?? 0),
+            rank: deriveRank(rating, globalPlacement),
+            globalPlacement,
+        },
+        topCharacters,
+        totalGames,
+        pastSeasons
     };
 }
