@@ -65,8 +65,9 @@ client.on("interactionCreate", async (i) => {
             const charText = profile.topCharacters
                 .map((char, index) => {
                     const percentage = Math.round((char.gameCount / profile.totalGames) * 100);
-                    const medal = index === 0 ? "🥇" : index === 1 ? "🥈" : "🥉";
-                    return `${medal} ${getCharacterName(char.character)} - ${char.gameCount} games (${percentage}%)`;
+                    // Use character icons as attachments, but keep medals in text since Discord doesn't support inline images in text
+                    const position = index === 0 ? "1st" : index === 1 ? "2nd" : "3rd";
+                    return `**${position}:** ${getCharacterName(char.character)} - ${char.gameCount} games (${percentage}%)`;
                 })
                 .join("\n");
 

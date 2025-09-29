@@ -417,26 +417,32 @@ export function getCharacterIconPath(charId: number): string {
     // Map character names to their directory names (handling special cases)
     const nameToDir: { [key: string]: string } = {
         "Mr. Game & Watch": "Game & Watch",
-        "Dr. Mario": "Dr. Mario",
+        "Dr. Mario": "Dr. Mario", 
         "Young Link": "Young Link",
         "Ice Climbers": "Ice Climbers"
     };
     
     const dirName = nameToDir[charName] || charName;
-    const fileName = charName.toLowerCase().replace(/[^a-z0-9]/g, '').replace('mrgamewatch', 'gamewatch');
     
-    // Most character files follow the pattern: charactername.png
+    // The files are all lowercase versions of the character name
+    // Remove spaces, special characters, and convert to lowercase
+    let fileName = charName.toLowerCase()
+        .replace(/[^a-z0-9]/g, '') // Remove all non-alphanumeric characters
+        .replace('mrgamewatch', 'gamewatch'); // Special case for Game & Watch
+    
+    // Try the most likely filename pattern first (all lowercase, no spaces)
     const possibleNames = [
         `${fileName}.png`,
-        `${charName.toLowerCase().replace(/[^a-z]/g, '')}.png`,
-        `${charName.toLowerCase().replace(/ /g, '_')}.png`
+        `${charName.toLowerCase().replace(/\s+/g, '').replace(/[^a-z0-9]/g, '')}.png`,
+        `${charName.toLowerCase().replace(/\s+/g, '_')}.png`,
+        `${charName.toLowerCase().replace(/\s+/g, '-')}.png`
     ];
     
     const basePath = path.resolve(process.cwd(), "stock-icons", "Modernized Stock Icons HD", dirName);
     
     // Try to find the actual file
-    for (const fileName of possibleNames) {
-        const fullPath = path.join(basePath, fileName);
+    for (const testFileName of possibleNames) {
+        const fullPath = path.join(basePath, testFileName);
         if (fs.existsSync(fullPath)) {
             console.debug(`[getCharacterIconPath] Found icon for ${charName}: ${fullPath}`);
             return fullPath;
