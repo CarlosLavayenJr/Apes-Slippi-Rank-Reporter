@@ -411,4 +411,70 @@ export async function fetchProfileByCode(code: string): Promise<ProfileData | nu
     };
 }
 
+export function getCharacterIconPath(charId: number): string {
+    const charName = getCharacterName(charId);
+    
+    // Map character names to their directory names (handling special cases)
+    const nameToDir: { [key: string]: string } = {
+        "Mr. Game & Watch": "Game & Watch",
+        "Dr. Mario": "Dr. Mario",
+        "Young Link": "Young Link",
+        "Ice Climbers": "Ice Climbers"
+    };
+    
+    const dirName = nameToDir[charName] || charName;
+    const fileName = charName.toLowerCase().replace(/[^a-z0-9]/g, '').replace('mrgamewatch', 'gamewatch');
+    
+    // Most character files follow the pattern: charactername.png
+    const possibleNames = [
+        `${fileName}.png`,
+        `${charName.toLowerCase().replace(/[^a-z]/g, '')}.png`,
+        `${charName.toLowerCase().replace(/ /g, '_')}.png`
+    ];
+    
+    const basePath = path.resolve(process.cwd(), "stock-icons", "Modernized Stock Icons HD", dirName);
+    
+    // Try to find the actual file
+    for (const fileName of possibleNames) {
+        const fullPath = path.join(basePath, fileName);
+        if (fs.existsSync(fullPath)) {
+            console.debug(`[getCharacterIconPath] Found icon for ${charName}: ${fullPath}`);
+            return fullPath;
+        }
+    }
+    
+    // Fallback: try to find any .png file in the character directory
+    try {
+        const files = fs.readdirSync(basePath);
+        const pngFile = files.find(f => f.toLowerCase().endsWith('.png'));
+        if (pngFile) {
+            const fullPath = path.join(basePath, pngFile);
+            console.debug(`[getCharacterIconPath] Found fallback icon for ${charName}: ${fullPath}`);
+            return fullPath;
+        }
+    } catch (e) {
+        console.error(`[getCharacterIconPath] Directory not found: ${basePath}`);
+    }
+    
+    console.warn(`[getCharacterIconPath] No icon found for ${charName} (ID: ${charId})`);
+    return "";
+}
+
+export function createCharacterAttachments(topCharacters: Character[]): AttachmentBuilder[] {
+    const attachments: AttachmentBuilder[] = [];
+    
+    topCharacters.forEach((char, index) => {
+        const iconPath = getCharacterIconPath(char.character);
+        if (iconPath && fs.existsSync(iconPath)) {
+            const attachment = new AttachmentBuilder(iconPath, { 
+                name: `character_${index}.png` 
+            });
+            attachments.push(attachment);
+            console.log(`[slippi] Created character attachment for ${getCharacterName(char.character)}`);
+        }
+    });
+    
+    return attachments;
+}
+
 export { getCharacterName };

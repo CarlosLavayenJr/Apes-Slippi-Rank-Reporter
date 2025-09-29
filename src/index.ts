@@ -1,6 +1,6 @@
 import { Client, GatewayIntentBits, EmbedBuilder } from "discord.js";
 import { addToWatchList, removeFromWatchList, listWatchList } from "./watchlist";
-import { fetchRankedByCode, createRankAttachment, fetchProfileByCode, getCharacterName } from "./slippi";
+import { fetchRankedByCode, createRankAttachment, fetchProfileByCode, getCharacterName, createCharacterAttachments } from "./slippi";
 import "dotenv/config";
 import { startPolling } from "./poller";
 import { registerCommandHandlers } from "./commands";
@@ -96,21 +96,28 @@ client.on("interactionCreate", async (i) => {
 
         embed.setTimestamp(new Date());
 
-
+        // Create all attachments
         const rankAttachment = createRankAttachment(profile.currentProfile.rank ?? "");
-        // Check if attachment exists before adding it
+        const characterAttachments = createCharacterAttachments(profile.topCharacters);
+        
+        const allAttachments = [];
         if (rankAttachment) {
             embed.setImage("attachment://rank.png");
-            return i.editReply({
-                embeds: [embed],
-                files: [rankAttachment]
-            });
-        } else {
-            // Send without attachment if file doesn't exist
-            return i.editReply({
-                embeds: [embed]
-            });
+            allAttachments.push(rankAttachment);
         }
+        
+        // Add character thumbnails if available
+        if (characterAttachments.length > 0) {
+            // You could set one as thumbnail or create a collage
+            // For now, let's add the top character as thumbnail
+            embed.setThumbnail(`attachment://${characterAttachments[0].name}`);
+            allAttachments.push(...characterAttachments);
+        }
+
+        return i.editReply({
+            embeds: [embed],
+            files: allAttachments
+        });
     }
 
     if (i.commandName === "rank") {
