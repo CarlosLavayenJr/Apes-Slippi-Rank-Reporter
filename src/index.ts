@@ -124,6 +124,11 @@ client.on("interactionCreate", async (i) => {
             return i.editReply("No ranked profile found.");
         }
 
+        // Add global placement info to embed if available and in top 300
+        const rankDisplay = snap.globalPlacement && snap.globalPlacement <= 300 
+            ? `${snap.rank ?? "?"} (Global #${snap.globalPlacement})` 
+            : `${snap.rank ?? "?"}`;
+
         const embed = new EmbedBuilder()
             .setTitle(`${code.toUpperCase()} — ${snap.season ?? "season ?"}`)
             .addFields(
@@ -139,7 +144,7 @@ client.on("interactionCreate", async (i) => {
                 },
                 {
                     name: "Rank",
-                    value: `${snap.rank ?? "?"}`,
+                    value: rankDisplay,
                     inline: true
                 }
             )
@@ -149,7 +154,7 @@ client.on("interactionCreate", async (i) => {
 
         // Check if attachment exists before adding it
         if (rankAttachment) {
-            embed.setImage("attachment://rank.svg");
+            embed.setImage("attachment://rank.png");
             return i.editReply({
                 embeds: [embed],
                 files: [rankAttachment]
