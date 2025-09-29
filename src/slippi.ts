@@ -73,6 +73,9 @@ export type Snapshot = {
     wins: number;
     losses: number;
     rank: string | null;
+    globalPlacement?: number;
+    regionalPlacement?: number;
+
 };
 
 export type Character = {
@@ -103,6 +106,8 @@ type RankedResp = {
                 ratingOrdinal?: number;
                 wins?: number;
                 losses?: number;
+                dailyGlobalPlacement?: number;
+                dailyRegionalPlacement?: number;
                 characters?: Array<{
                     character: number;
                     gameCount: number;
@@ -113,6 +118,8 @@ type RankedResp = {
                 ratingOrdinal?: number;
                 wins?: number;
                 losses?: number;
+                dailyGlobalPlacement?: number;
+                dailyRegionalPlacement?: number;
                 characters?: Array<{
                     character: number;
                     gameCount: number;
@@ -314,6 +321,8 @@ export async function fetchRankedByCode(code: string): Promise<Snapshot | null> 
         wins: Number(prof.wins ?? 0),
         losses: Number(prof.losses ?? 0),
         rank: deriveRank(rating),
+        globalPlacement: prof.dailyGlobalPlacement ? Number(prof.dailyGlobalPlacement) : undefined,
+        regionalPlacement: prof.dailyRegionalPlacement ? Number(prof.dailyRegionalPlacement) : undefined,
     };
 }
 
