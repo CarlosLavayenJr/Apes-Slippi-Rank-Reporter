@@ -251,6 +251,8 @@ function getCurrentSeasonName(
     return currentSeasonId;
 }
 
+
+
 export async function fetchRankedByCode(code: string): Promise<Snapshot | null> {
     const cc = code.toUpperCase().trim();
     const payload = {
@@ -324,6 +326,8 @@ export async function fetchProfileByCode(code: string): Promise<ProfileData | nu
         variables: { cc, uid: cc },
         query,
     };
+
+
 
     let r: Response;
     try {
