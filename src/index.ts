@@ -5,7 +5,7 @@ import "dotenv/config";
 import { startPolling } from "./poller";
 import { registerCommandHandlers } from "./commands";
 
-// Initialize the client
+// Initialize the client for ucf disc
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 
 // Register additional command handlers from commands.ts
